@@ -26,7 +26,7 @@ def gen_captcha_text_and_image():
     image = ImageCaptcha()
     captcha_text = "".join(random_captcha_text())
     captcha = image.generate(captcha_text)
-    image.write(captcha_text, f"{captcha_text}.jpg")
+    # image.write(captcha_text, f"{captcha_text}.jpg")
     captcha_image = np.array(Image.open(captcha))
     return captcha_text, captcha_image
 
