@@ -228,10 +228,10 @@ def crack_captcha(captcha_image):
 
 
 if __name__ == '__main__':
-    # 不能重复验证,只能单张验证,为什么?
+
     text, image = gen_captcha_text_and_image()
     image = convert2gray(image)  # 生成一张新图
     image = image.flatten() / 255  # 将图片一维化
     predict_text = crack_captcha(image)  # 导入模型识别
-    print("正确: {}  预测: {}".format(text, predict_text))
+    print(f"正确: {text}  预测: {predict_text}")
 # train_crack_captcha_cnn()
