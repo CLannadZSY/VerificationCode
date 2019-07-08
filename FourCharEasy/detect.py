@@ -1,6 +1,6 @@
 # coding:utf-8
-from FourChar.generate_code import gen_captcha_text_and_image
-from FourChar.generate_code import number, uppercase_letter, lowercase_letter
+from FourCharEasy.generate_code import gen_captcha_text_and_image
+from FourCharEasy.generate_code import number, uppercase_letter, lowercase_letter
 
 import numpy as np
 import tensorflow as tf
