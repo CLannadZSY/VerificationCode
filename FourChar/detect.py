@@ -1,11 +1,9 @@
-from generate_code import gen_captcha_text_and_image
-from generate_code import number, uppercase_letter, lowercase_letter
-
+# coding:utf-8
+from FourChar.generate_code import gen_captcha_text_and_image
+from FourChar.generate_code import number, uppercase_letter, lowercase_letter
 
 import numpy as np
 import tensorflow as tf
-
-
 
 text, image = gen_captcha_text_and_image()
 print("验证码图像channel:", image.shape)  # (60, 160, 3)
@@ -30,7 +28,7 @@ def convert2gray(img):
 
 """
 cnn在图像大小是2的倍数时性能最高, 如果你用的图像大小不是2的倍数，可以在图像边缘补无用像素。
-np.pad(image,((2,3),(2,2)), 'constant', constant_values=(255,))  # 在图像上补2行，下补3行，左补2行，右补2行
+np.pad(image【,((2,3),(2,2)), 'constant', constant_values=(255,))  # 在图像上补2行，下补3行，左补2行，右补2行
 """
 
 # 文本转向量
@@ -43,7 +41,7 @@ def text2vec(text):
     if text_len > MAX_CAPTCHA:
         raise ValueError('验证码最长4个字符')
 
-    vector = np.zeros(MAX_CAPTCHA * CHAR_SET_LEN)
+    vector = np.zeros(MAX_CAPTCHA * CHAR_SET_LEN)  # 生成一个默认为0的向量
 
     def char2pos(c):
         if c == '_':
@@ -96,12 +94,12 @@ print(text)  # SFd5
 """
 
 
-# 生成一个训练batch
+# 生成一个训练batchv  一个批次为 默认128 张图片 转换为向量
 def get_next_batch(batch_size=128):
     batch_x = np.zeros([batch_size, IMAGE_HEIGHT * IMAGE_WIDTH])
     batch_y = np.zeros([batch_size, MAX_CAPTCHA * CHAR_SET_LEN])
 
-    # 有时生成图像大小不是(60, 160, 3)
+    # 有时生成图像大小不是(60, 160, 3)  反复获取验证码直到该验证码符合标准格式。
     def wrap_gen_captcha_text_and_image():
         while True:
             text, image = gen_captcha_text_and_image()
@@ -109,9 +107,11 @@ def get_next_batch(batch_size=128):
                 return text, image
 
     for i in range(batch_size):
+        # 获取图片，并灰度转换
         text, image = wrap_gen_captcha_text_and_image()
         image = convert2gray(image)
 
+        # flatten 图片一维化 以及对应的文字内容也一维化，形成一个128行每行一个图片及对应文本
         batch_x[i, :] = image.flatten() / 255  # (image.flatten()-128)/128  mean为0
         batch_y[i, :] = text2vec(text)
 
@@ -120,6 +120,7 @@ def get_next_batch(batch_size=128):
 
 ####################################################################
 
+# 申请三个占位符
 X = tf.placeholder(tf.float32, [None, IMAGE_HEIGHT * IMAGE_WIDTH])
 Y = tf.placeholder(tf.float32, [None, MAX_CAPTCHA * CHAR_SET_LEN])
 keep_prob = tf.placeholder(tf.float32)  # dropout
@@ -135,7 +136,7 @@ def crack_captcha_cnn(w_alpha=0.01, b_alpha=0.1):
     # w_d1_alpha = np.sqrt(2.0/(8*32*64))
     # out_alpha = np.sqrt(2.0/1024)
 
-    # 3 conv layer
+    # 3 conv layer # 3 个 转换层
     w_c1 = tf.Variable(w_alpha * tf.random_normal([3, 3, 1, 32]))
     b_c1 = tf.Variable(b_alpha * tf.random_normal([32]))
     conv1 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(x, w_c1, strides=[1, 1, 1, 1], padding='SAME'), b_c1))
@@ -154,13 +155,14 @@ def crack_captcha_cnn(w_alpha=0.01, b_alpha=0.1):
     conv3 = tf.nn.max_pool(conv3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
     conv3 = tf.nn.dropout(conv3, keep_prob)
 
-    # Fully connected layer
+    # Fully connected layer  # 最后连接层
     w_d = tf.Variable(w_alpha * tf.random_normal([8 * 20 * 64, 1024]))
     b_d = tf.Variable(b_alpha * tf.random_normal([1024]))
     dense = tf.reshape(conv3, [-1, w_d.get_shape().as_list()[0]])
     dense = tf.nn.relu(tf.add(tf.matmul(dense, w_d), b_d))
     dense = tf.nn.dropout(dense, keep_prob)
 
+    # 输出层
     w_out = tf.Variable(w_alpha * tf.random_normal([1024, MAX_CAPTCHA * CHAR_SET_LEN]))
     b_out = tf.Variable(b_alpha * tf.random_normal([MAX_CAPTCHA * CHAR_SET_LEN]))
     out = tf.add(tf.matmul(dense, w_out), b_out)
@@ -171,11 +173,11 @@ def crack_captcha_cnn(w_alpha=0.01, b_alpha=0.1):
 # 训练
 def train_crack_captcha_cnn():
     output = crack_captcha_cnn()
-    # loss
+    # loss 损失数值
     # loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, Y))
     loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=output, labels=Y))
     # 最后一层用来分类的softmax和sigmoid有什么不同？
-    # optimizer 为了加快训练 learning_rate应该开始大，然后慢慢衰
+    # optimizer 为了加快训练 learning_rate 应该开始大，然后慢慢衰
     optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
 
     predict = tf.reshape(output, [-1, MAX_CAPTCHA, CHAR_SET_LEN])
@@ -203,9 +205,33 @@ def train_crack_captcha_cnn():
                 if acc > 0.5:
                     saver.save(sess, "./crack_capcha.model", global_step=step)
                     break
-
             step += 1
+
+
+def crack_captcha(captcha_image):
+    output = crack_captcha_cnn()
+
+    saver = tf.train.Saver()
+    with tf.Session() as sess:
+        saver.restore(sess, tf.train.latest_checkpoint('.'))
+
+        predict = tf.argmax(tf.reshape(output, [-1, MAX_CAPTCHA, CHAR_SET_LEN]), 2)
+        text_list = sess.run(predict, feed_dict={X: [captcha_image], keep_prob: 1})
+
+        text = text_list[0].tolist()
+        vector = np.zeros(MAX_CAPTCHA * CHAR_SET_LEN)
+        i = 0
+        for n in text:
+            vector[i * CHAR_SET_LEN + n] = 1
+            i += 1
+        return vec2text(vector)
+
 
 if __name__ == '__main__':
 
-    train_crack_captcha_cnn()
+    text, image = gen_captcha_text_and_image()
+    image = convert2gray(image)  # 生成一张新图
+    image = image.flatten() / 255  # 将图片一维化
+    predict_text = crack_captcha(image)  # 导入模型识别
+    print(f"正确: {text}  预测: {predict_text}")
+# train_crack_captcha_cnn()
